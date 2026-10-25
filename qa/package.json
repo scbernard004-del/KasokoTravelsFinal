@@ -1,0 +1,6 @@
+{
+  "name": "kasoko-qa",
+  "private": true,
+  "scripts": {"test": "node bookings.test.mjs && node site.test.cjs"},
+  "devDependencies": {"jsdom": "26.1.0"}
+}

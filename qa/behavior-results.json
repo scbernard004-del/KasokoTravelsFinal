@@ -1,0 +1,9 @@
+{
+  "checked": "2026-10-25",
+  "status": "PASS",
+  "pages": 60,
+  "assertions": 5562,
+  "mockedSubmissions": 21,
+  "externalRequestsSent": 0,
+  "renderedLayoutTested": false
+}
