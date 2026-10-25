@@ -1,0 +1,116 @@
+/*
+  Kasoko Safaris & Tours — private booking receiver
+
+  This receiver saves each request to a private Google Sheet and then sends an
+  optional owner alert. The public website only receives request_received after
+  the row has been saved. It never marks a supplier booking or payment as
+  confirmed.
+
+  Setup:
+  1. Create a private Google Sheet and copy its ID from the URL.
+  2. Create an Apps Script project at script.google.com and paste this file.
+  3. Project Settings > Script properties:
+       SHEET_ID       = your private spreadsheet ID
+       ALERT_EMAIL    = your private alert email
+       WEBHOOK_SECRET = a long random secret
+  4. Run setupSheet once from the Apps Script editor and approve permissions.
+  5. Deploy > New deployment > Web app; execute as you; access: Anyone.
+  6. Copy the /exec URL to Vercel as BOOKING_WEBHOOK_URL and use the same
+     WEBHOOK_SECRET value as BOOKING_WEBHOOK_SECRET.
+*/
+
+var HEADERS = [
+  'received_at', 'reference', 'status', 'language', 'service', 'destination',
+  'origin', 'start_date', 'end_date', 'adults', 'children', 'child_ages',
+  'infants', 'rooms', 'room_type', 'meal_plan', 'travel_class', 'operator',
+  'time', 'style', 'addons', 'currency', 'budget', 'name', 'phone', 'email',
+  'contact_method', 'notes', 'email_status', 'booking_json'
+];
+
+function json_(value) {
+  return ContentService.createTextOutput(JSON.stringify(value))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function getSheet_() {
+  var id = PropertiesService.getScriptProperties().getProperty('SHEET_ID');
+  if (!id) throw new Error('SHEET_ID missing');
+  var ss = SpreadsheetApp.openById(id);
+  var sheet = ss.getSheetByName('Bookings') || ss.insertSheet('Bookings');
+  if (sheet.getLastRow() === 0) sheet.appendRow(HEADERS);
+  return sheet;
+}
+
+function setupSheet() {
+  var sheet = getSheet_();
+  if (sheet.getLastRow() === 0) sheet.appendRow(HEADERS);
+  return 'Bookings sheet ready';
+}
+
+function findReference_(sheet, reference) {
+  if (sheet.getLastRow() < 2) return 0;
+  var values = sheet.getRange(2, 2, sheet.getLastRow() - 1, 1).getValues();
+  for (var i = 0; i < values.length; i++) {
+    if (String(values[i][0]) === reference) return i + 2;
+  }
+  return 0;
+}
+
+function doGet() {
+  return json_({ok: true, service: 'kasoko-booking-receiver'});
+}
+
+function doPost(e) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var secret = props.getProperty('WEBHOOK_SECRET');
+    var body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    if (!secret || body.secret !== secret || !body.reference || !body.booking) {
+      return json_({ok: false, error: 'unauthorized'});
+    }
+    var sheet = getSheet_();
+    var existingRow = findReference_(sheet, String(body.reference));
+    if (existingRow) return json_({ok: true, status: 'request_received', reference: String(body.reference)});
+
+    var booking = body.booking;
+    var row = [
+      new Date(), String(body.reference), 'request_received', String(body.language || 'en'),
+      booking.service || '', booking.destination || '', booking.origin || '',
+      booking.startDate || '', booking.endDate || '', booking.adults || '', booking.children == null ? '' : booking.children,
+      booking.childAges || '', booking.infants == null ? '' : booking.infants, booking.rooms || '', booking.roomType || '',
+      booking.mealPlan || '', booking.travelClass || '', booking.operator || '', booking.time || '',
+      booking.style || '', (booking.addons || []).join(', '), booking.currency || '', booking.budget == null ? '' : booking.budget,
+      booking.name || '', booking.phone || '', booking.email || '', booking.contactMethod || '',
+      booking.notes || '', 'pending', JSON.stringify(booking)
+    ];
+    // Store user text literally; prevent spreadsheet formulas from running.
+    row = row.map(function(value) {
+      return typeof value === 'string' && /^[=+\-@\t\r]/.test(value) ? "'" + value : value;
+    });
+    sheet.appendRow(row);
+
+    var emailStatus = 'not_configured';
+    var to = props.getProperty('ALERT_EMAIL');
+    if (to) {
+      try {
+        var summary = (body.summary || []).map(function(pair) { return pair[0] + ': ' + pair[1]; }).join('\n');
+        MailApp.sendEmail({
+          to: to,
+          subject: 'Kasoko booking request ' + body.reference,
+          body: 'A new request was saved to the private Bookings sheet.\n\nReference: ' + body.reference + '\n\n' + summary + '\n\nAvailability and price still require Kasoko confirmation.'
+        });
+        emailStatus = 'sent';
+      } catch (mailError) {
+        emailStatus = 'failed';
+      }
+    }
+    sheet.getRange(sheet.getLastRow(), 29).setValue(emailStatus);
+    return json_({ok: true, status: 'request_received', reference: String(body.reference)});
+  } catch (err) {
+    return json_({ok: false, error: 'receiver_error'});
+  } finally {
+    lock.releaseLock();
+  }
+}

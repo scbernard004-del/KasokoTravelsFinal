@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title>Kasoko Safaris &amp; Tours icon</title>
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7cf74"/>
+      <stop offset="0.55" stop-color="#e9ae3f"/>
+      <stop offset="1" stop-color="#c9851e"/>
+    </linearGradient>
+  </defs>
+  <circle cx="64" cy="64" r="58" fill="#ffffff"/>
+  <circle cx="64" cy="64" r="57" fill="none" stroke="url(#gold)" stroke-opacity="0.55" stroke-width="2"/>
+  <g transform="translate(31 22)">
+    <path d="M33 0C14.8 0 0 14.8 0 33c0 23.8 26.8 55.5 31.2 60.5.8.9 2.1.9 2.8 0 4.4-5 31.2-36.7 31.2-60.5C66 14.8 51.2 0 33 0Z" fill="url(#gold)"/>
+    <circle cx="33" cy="32.8" r="9.8" fill="#17212c"/>
+    <rect x="30" y="16.9" width="6.2" height="35.6" rx="3.1" fill="#fffefb"/>
+    <path d="M24.3 22.5c6.4-5.5 13.1-6 20.4-2.3-5.5 1.2-9 4.2-10.1 9.4-3.2-3.4-6.6-5.7-10.3-7.1Z" fill="#fffefb"/>
+    <path d="M18.6 61.3h28.9l5.2 9.2H13.5z" fill="#d18e23"/>
+  </g>
+</svg>
